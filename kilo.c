@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-struct termios orig_termios;
+struct termios orig_termios; // Saved copy of users ternimal before use
 
 void disableRawMode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
@@ -17,7 +17,13 @@ void enableRawMode() {
 
     struct termios raw = orig_termios;
     tcgetattr(STDIN_FILENO, &raw);
-    raw.c_lflag &= ~(ECHO | ICANON);
+
+    //Turning off terminal flags
+    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    raw.c_oflag &= ~(OPOST);
+    raw.c_cflag |= (CS8);
+    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
@@ -27,9 +33,9 @@ int main() {
     char c;
     while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q') {
         if (iscntrl(c)) {
-            printf("%d\n", c);
+            printf("%d\r\n", c);
         } else {
-            printf("%d ('%c')\n", c, c);
+            printf("%d ('%c')\r\n", c, c);
         }
     }
     return 1;
