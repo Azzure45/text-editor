@@ -10,7 +10,12 @@
 #define CTRL_KEY(k) ((k) & 0x1f)
 
 /*** data ***/
-struct termios orig_termios; // Saved copy of users ternimal before use
+
+struct editorConfig {
+  struct termios orig_termios; // Saved copy of users ternimal before use
+};
+struct editorConfig E;
+
 
 /*** terminal ***/
 void die(const char *s) {
@@ -22,14 +27,14 @@ void die(const char *s) {
 }
 
 void disableRawMode() {
-	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) die("tcsetattr");
+	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1) die("tcsetattr");
 }
 
 void enableRawMode() {
-	  if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) die("tcgetattr");
+	  if (tcgetattr(STDIN_FILENO, &E.orig_termios) == -1) die("tcgetattr");
   atexit(disableRawMode);
 
-  struct termios raw = orig_termios;
+  struct termios raw = E.orig_termios;
 	// Setting terminal flag to enter 'raw mode'
   raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
   raw.c_oflag &= ~(OPOST);
