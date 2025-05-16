@@ -16,10 +16,13 @@
 /*** data ***/
 
 struct editorConfig {
-  struct termios orig_termios; // Saved copy of users ternimal before use
 	// Size of text editor
 	int screenrows;
   int screencols;
+	//
+  int cx, cy;
+	//
+  struct termios orig_termios; // Saved copy of users ternimal before use
 };
 struct editorConfig E;
 
@@ -56,14 +59,14 @@ void enableRawMode() {
 char editorReadKey() {
   int nread;
   char c;
-  while ((nread = read(STDIN_FILENO, &c, 1)) != 1) { //? I don't quiet get how this work, I understand the left part, but don't quite understand how "!= 1" works here
+  while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
     if (nread == -1 && errno != EAGAIN) die("read");
   }
   return c;
 }
 
 int getCursorPosition(int *rows, int *cols) {
-    char buf[32];
+	char buf[32];
   unsigned int i = 0;
 	//"\x1b[6n" actually calls on a CPR (Cursor Position Report) which is left in the STDOUT file
   if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4) return -1;
@@ -144,13 +147,34 @@ void editorRefreshScreen() {
   abAppend(&ab, "\x1b[?25l", 6); // Hides cursor
   abAppend(&ab, "\x1b[H", 3); // Moves cursor to the top of the screen
   editorDrawRows(&ab); // prints '~' foreach row 
-  abAppend(&ab, "\x1b[H", 3);
+	// Move cursor based on saved posistion
+	char buf[32];
+  snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.cy + 1, E.cx + 1);
+  abAppend(&ab, buf, strlen(buf));
+	
   abAppend(&ab, "\x1b[?25h", 6); // Shows cursor
   write(STDOUT_FILENO, ab.b, ab.len); // Writes out the buffer
   abFree(&ab);
 }
 
 /*** input ***/
+void editorMoveCursor(char key) {
+  switch (key) {
+    case 'a':
+      E.cx--;
+      break;
+    case 'd':
+      E.cx++;
+      break;
+    case 'w':
+      E.cy--;
+      break;
+    case 's':
+      E.cy++;
+      break;
+  }
+}
+
 void editorProcessKeypress() {
   char c = editorReadKey();
   switch (c) {
@@ -159,11 +183,20 @@ void editorProcessKeypress() {
 			write(STDOUT_FILENO, "\x1b[H", 3);
       exit(0);
       break;
+		case 'w':
+    case 's':
+    case 'a':
+    case 'd':
+      editorMoveCursor(c);
+      break;
   }
 }
 
 /*** init ***/
 void initEditor() {
+  E.cx = 0;
+  E.cy = 0;
+
   if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
 }
 
