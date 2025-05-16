@@ -13,8 +13,14 @@
 
 #define CTRL_KEY(k) ((k) & 0x1f)
 
-/*** data ***/
+enum editorKey {
+  ARROW_LEFT = 1000,
+  ARROW_RIGHT,
+  ARROW_UP,
+  ARROW_DOWN, 
+};
 
+/*** data ***/
 struct editorConfig {
 	// Size of text editor
 	int screenrows;
@@ -56,13 +62,32 @@ void enableRawMode() {
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("tcsetattr");
 }
 
-char editorReadKey() {
+int editorReadKey() {
   int nread;
   char c;
   while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
     if (nread == -1 && errno != EAGAIN) die("read");
   }
-  return c;
+	/** Arrow keys **/
+  if (c == '\x1b') {
+    char seq[3];
+		// Checks to see if you can read the input
+    if (read(STDIN_FILENO, &seq[0], 1) != 1) return '\x1b';
+    if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\x1b';
+		// Check if it is the start of an arrow key
+    if (seq[0] == '[') {
+			// Translate from ABCD to ENUM
+      switch (seq[1]) {
+				case 'A': return ARROW_UP;
+        case 'B': return ARROW_DOWN;
+        case 'C': return ARROW_RIGHT;
+        case 'D': return ARROW_LEFT;
+      }
+    }
+    return '\x1b';
+  } else { // Not an arrow key
+    return c;
+  }
 }
 
 int getCursorPosition(int *rows, int *cols) {
@@ -129,7 +154,7 @@ void editorDrawRows(struct abuf *ab) {
         abAppend(ab, "~", 1);
         padding--;
       }
-      while (padding--) abAppend(ab, " ", 1);
+      while (padding--) { abAppend(ab, " ", 1); }
 			abAppend(ab, welcome, welcomelen);
 		} else {
 			abAppend(ab, "~", 1);
@@ -158,37 +183,37 @@ void editorRefreshScreen() {
 }
 
 /*** input ***/
-void editorMoveCursor(char key) {
+void editorMoveCursor(int key) {
   switch (key) {
-    case 'a':
-      E.cx--;
-      break;
-    case 'd':
-      E.cx++;
-      break;
-    case 'w':
-      E.cy--;
-      break;
-    case 's':
-      E.cy++;
-      break;
+	case ARROW_LEFT:
+		E.cx--;
+		break;
+	case ARROW_RIGHT:
+		E.cx++;
+		break;
+	case ARROW_UP:
+		E.cy--;
+		break;
+	case ARROW_DOWN:
+		E.cy++;
+		break;
   }
 }
 
 void editorProcessKeypress() {
-  char c = editorReadKey();
+  int c = editorReadKey();
   switch (c) {
-    case CTRL_KEY('q'):
-			write(STDOUT_FILENO, "\x1b[2J", 4);
-			write(STDOUT_FILENO, "\x1b[H", 3);
-      exit(0);
-      break;
-		case 'w':
-    case 's':
-    case 'a':
-    case 'd':
-      editorMoveCursor(c);
-      break;
+	case CTRL_KEY('q'):
+		write(STDOUT_FILENO, "\x1b[2J", 4);
+		write(STDOUT_FILENO, "\x1b[H", 3);
+		exit(0);
+		break;
+	case ARROW_UP:
+	case ARROW_DOWN:
+	case ARROW_LEFT:
+	case ARROW_RIGHT:
+		editorMoveCursor(c);
+		break;
   }
 }
 
