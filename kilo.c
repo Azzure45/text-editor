@@ -1,3 +1,4 @@
+/*** includes ***/
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
@@ -5,8 +6,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+/*** defines ***/
+#define CTRL_KEY(k) ((k) & 0x1f)
+
+/*** data ***/
 struct termios orig_termios; // Saved copy of users ternimal before use
 
+/*** terminal ***/
 void die(const char *s) {
   perror(s);
   exit(1);
@@ -32,6 +38,7 @@ void enableRawMode() {
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("tcsetattr");
 }
 
+/*** init ***/
 int main() {
 	enableRawMode();
 
