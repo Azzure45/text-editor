@@ -1,6 +1,3 @@
-#project specific
-*.exe
-
 # Prerequisites
 *.d
 

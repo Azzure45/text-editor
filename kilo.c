@@ -32,5 +32,5 @@ int main() {
             printf("%d ('%c')\n", c, c);
         }
     }
-    return 0;
+    return 1;
 }
