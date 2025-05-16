@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
@@ -90,22 +91,47 @@ int getWindowSize(int *rows, int *cols) {
   }
 }
 
+/*** append buffer ***/
+struct abuf {
+  char *b;
+  int len;
+};
+
+#define ABUF_INIT {NULL, 0}
+
+void abAppend(struct abuf *ab, const char *s, int len) {
+  char *new = realloc(ab->b, ab->len + len); // Realloc the "string" part of the struct with a larger size
+  if (new == NULL) return;
+  memcpy(&new[ab->len], s, len); // Copies the new char * to the previous start of the lenght member (so, literally appending the text)
+  ab->b = new; // Saves the new appended string
+  ab->len += len; // Updates the lenght
+}
+
+void abFree(struct abuf *ab) {
+  free(ab->b);
+}
+
 /*** output ***/
-void editorDrawRows() {
+void editorDrawRows(struct abuf *ab) {
   int y;
-	for (y = 0; y < E.screenrows; y++) {
-    write(STDOUT_FILENO, "~", 1);
+  for (y = 0; y < E.screenrows; y++) {
+    abAppend(ab, "~", 1);
     if (y < E.screenrows - 1) {
-      write(STDOUT_FILENO, "\r\n", 2);
+      abAppend(ab, "\r\n", 2);
     }
   }
 }
 
 void editorRefreshScreen() {
-  write(STDOUT_FILENO, "\x1b[2J", 4);
-	write(STDOUT_FILENO, "\x1b[H", 3);
-	editorDrawRows();
-  write(STDOUT_FILENO, "\x1b[H", 3);
+  struct abuf ab = ABUF_INIT;
+  abAppend(&ab, "\x1b[?25l", 6); // Hides cursor
+  abAppend(&ab, "\x1b[2J", 4); // Clears screen
+  abAppend(&ab, "\x1b[H", 3); // Moves cursor to the top of the screen
+  editorDrawRows(&ab); // prints '~' foreach row 
+  abAppend(&ab, "\x1b[H", 3);
+  abAppend(&ab, "\x1b[?25h", 6); // Shows cursor
+  write(STDOUT_FILENO, ab.b, ab.len); // Writes out the buffer
+  abFree(&ab);
 }
 
 /*** input ***/
