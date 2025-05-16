@@ -50,7 +50,7 @@ int main() {
 		} else {
 			printf("%d ('%c')\r\n", c, c);
 		}
-		if (c == 'q') break;
+		if (c == CTRL_KEY('q')) break;
 	}
 	return 1;
 }
