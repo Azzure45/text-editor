@@ -60,23 +60,27 @@ char editorReadKey() {
 }
 
 int getCursorPosition(int *rows, int *cols) {
+    char buf[32];
+  unsigned int i = 0;
+	//"\x1b[6n" actually calls on a CPR (Cursor Position Report) which is left in the STDOUT file
   if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4) return -1;
-  printf("\r\n");
-  char c;
-  while (read(STDIN_FILENO, &c, 1) == 1) {
-    if (iscntrl(c)) {
-      printf("%d\r\n", c);
-    } else {
-      printf("%d ('%c')\r\n", c, c);
-    }
+	// This reads the STDOUT file and put is in a buffer, since the CPR ends with a 'R' so does the code
+  while (i < sizeof(buf) - 1) {
+    if (read(STDIN_FILENO, &buf[i], 1) != 1) break;
+    if (buf[i] == 'R') break;
+    i++;
   }
-  editorReadKey();
-  return -1;
+  buf[i] = '\0';
+	// Makes sure the proccess worked
+	if (buf[0] != '\x1b' || buf[1] != '[') return -1;
+	// Uses sscanf() to move the collected data to the rows and coloums
+  if (sscanf(&buf[2], "%d;%d", rows, cols) != 2) return -1;
+  return 0;
 }
 
 int getWindowSize(int *rows, int *cols) {
   struct winsize ws;
-  if (1 || ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
+  if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
     if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12) return -1;
 		return getCursorPosition(rows, cols);
   } else {
@@ -90,7 +94,10 @@ int getWindowSize(int *rows, int *cols) {
 void editorDrawRows() {
   int y;
 	for (y = 0; y < E.screenrows; y++) {
-    write(STDOUT_FILENO, "~\r\n", 3);
+    write(STDOUT_FILENO, "~", 1);
+    if (y < E.screenrows - 1) {
+      write(STDOUT_FILENO, "\r\n", 2);
+    }
   }
 }
 
