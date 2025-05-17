@@ -44,15 +44,15 @@ typedef struct erow
 
 struct editorConfig
 {
-  int cx, cy; // Cursor position
-  int rx;     // Cursor after render position
-  int rowoff; // Row offset
-  int coloff; // Coloum offset
-  // Size of text editor
-  int screenrows;
-  int screencols;
+  int cx, cy;                  // Cursor position
+  int rx;                      // Cursor after render position
+  int rowoff;                  // Row offset
+  int coloff;                  // Coloum offset
+  int screenrows;              // Count of the amount of rows on screen
+  int screencols;              // Count of the amount of coloums on screen
   int numrows;                 // Row count
-  erow *row;                   // array of editor rows
+  erow *row;                   // Array of editor rows
+  char *filename;              // Filename
   struct termios orig_termios; // Saved copy of users ternimal before use
 };
 struct editorConfig E;
@@ -277,6 +277,8 @@ void editorAppendRow(char *s, size_t len)
 /*** file i/o ***/
 void editorOpen(char *filename)
 {
+  free(E.filename);
+  E.filename = strdup(filename);
   FILE *fp = fopen(filename, "r");
   if (!fp)
     die("fopen");
@@ -321,6 +323,26 @@ void abFree(struct abuf *ab)
 }
 
 /*** output ***/
+void editorDrawStatusBar(struct abuf *ab) {
+  abAppend(ab, "\x1b[7m", 4);
+  char status[80], rstatus[80];
+  int len = snprintf(status, sizeof(status), "%.20s - %d lines", E.filename ? E.filename : "[No Name]", E.numrows);
+  int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d", E.cy + 1, E.numrows);
+  
+  if (len > E.screencols) len = E.screencols;
+  abAppend(ab, status, len);
+  while (len < E.screencols) {
+    if (E.screencols - len == rlen) {
+    abAppend(ab, rstatus, rlen);
+    break;
+    } else {
+    abAppend(ab, " ", 1);
+    len++;
+    }
+  }
+  abAppend(ab, "\x1b[m", 3);
+}
+
 void editorScroll()
 {
   E.rx = 0;
@@ -385,10 +407,7 @@ void editorDrawRows(struct abuf *ab)
       abAppend(ab, &E.row[filerow].render[E.coloff], len);
     }
     abAppend(ab, "\x1b[K", 3);
-    if (y < E.screenrows - 1)
-    {
-      abAppend(ab, "\r\n", 2);
-    }
+    abAppend(ab, "\r\n", 2);
   }
 }
 
@@ -400,7 +419,8 @@ void editorRefreshScreen()
   abAppend(&ab, "\x1b[?25l", 6); // Hides cursor
   abAppend(&ab, "\x1b[H", 3);    // Moves cursor to the top of the screen
   editorDrawRows(&ab);           // prints '~' foreach row
-  // Move cursor based on saved posistion
+  editorDrawStatusBar(&ab);
+  /* Move cursor based on saved posistion */
   char buf[32];
   snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, (E.rx - E.coloff) + 1);
   abAppend(&ab, buf, strlen(buf));
@@ -509,9 +529,11 @@ void initEditor()
   E.coloff = 0;
   E.numrows = 0;
   E.row = NULL;
+  E.filename = NULL;
 
   if (getWindowSize(&E.screenrows, &E.screencols) == -1)
     die("getWindowSize");
+  E.screenrows -= 1;
 }
 
 int main(int argc, char *argv[])
