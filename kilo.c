@@ -46,15 +46,15 @@ typedef struct erow
 
 struct editorConfig
 {
-  int cx, cy;                  // Cursor position
-  int rx;                      // Cursor after render position
-  int rowoff;                  // Row offset
-  int coloff;                  // Coloum offset
-  int screenrows;              // Count of the amount of rows on screen
-  int screencols;              // Count of the amount of coloums on screen
-  int numrows;                 // Row count
-  erow *row;                   // Array of editor rows
-  char *filename;              // Filename
+  int cx, cy;     // Cursor position
+  int rx;         // Cursor after render position
+  int rowoff;     // Row offset
+  int coloff;     // Coloum offset
+  int screenrows; // Count of the amount of rows on screen
+  int screencols; // Count of the amount of coloums on screen
+  int numrows;    // Row count
+  erow *row;      // Array of editor rows
+  char *filename; // Filename
   char statusmsg[80];
   time_t statusmsg_time;
   struct termios orig_termios; // Saved copy of users ternimal before use
@@ -327,31 +327,39 @@ void abFree(struct abuf *ab)
 }
 
 /*** output ***/
-void editorDrawStatusBar(struct abuf *ab) {
+void editorDrawStatusBar(struct abuf *ab)
+{
   abAppend(ab, "\x1b[7m", 4);
   char status[80], rstatus[80];
   int len = snprintf(status, sizeof(status), "%.20s - %d lines", E.filename ? E.filename : "[No Name]", E.numrows);
   int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d", E.cy + 1, E.numrows);
 
-  if (len > E.screencols) len = E.screencols;
+  if (len > E.screencols)
+    len = E.screencols;
   abAppend(ab, status, len);
-  while (len < E.screencols) {
-    if (E.screencols - len == rlen) {
-    abAppend(ab, rstatus, rlen);
-    break;
-    } else {
-    abAppend(ab, " ", 1);
-    len++;
+  while (len < E.screencols)
+  {
+    if (E.screencols - len == rlen)
+    {
+      abAppend(ab, rstatus, rlen);
+      break;
+    }
+    else
+    {
+      abAppend(ab, " ", 1);
+      len++;
     }
   }
   abAppend(ab, "\x1b[m", 3);
   abAppend(ab, "\r\n", 2);
 }
 
-void editorDrawMessageBar(struct abuf *ab) {
+void editorDrawMessageBar(struct abuf *ab)
+{
   abAppend(ab, "\x1b[K", 3);
   int msglen = strlen(E.statusmsg);
-  if (msglen > E.screencols) msglen = E.screencols;
+  if (msglen > E.screencols)
+    msglen = E.screencols;
   if (msglen && time(NULL) - E.statusmsg_time < 5)
     abAppend(ab, E.statusmsg, msglen);
 }
@@ -431,10 +439,10 @@ void editorRefreshScreen()
 
   abAppend(&ab, "\x1b[?25l", 6); // Hides cursor
   abAppend(&ab, "\x1b[H", 3);    // Moves cursor to the top of the screen
-  
-  editorDrawRows(&ab);           // prints '~' foreach row
-  editorDrawStatusBar(&ab);      // prints the status bar at the bottom
-  editorDrawMessageBar(&ab);     // prints the message bar at the bottom
+
+  editorDrawRows(&ab);       // prints '~' foreach row
+  editorDrawStatusBar(&ab);  // prints the status bar at the bottom
+  editorDrawMessageBar(&ab); // prints the message bar at the bottom
 
   /* Move cursor based on saved posistion */
   char buf[32];
@@ -446,7 +454,8 @@ void editorRefreshScreen()
   abFree(&ab);
 }
 
-void editorSetStatusMessage(const char *fmt, ...) {
+void editorSetStatusMessage(const char *fmt, ...)
+{
   va_list ap;
   va_start(ap, fmt);
   vsnprintf(E.statusmsg, sizeof(E.statusmsg), fmt, ap);
