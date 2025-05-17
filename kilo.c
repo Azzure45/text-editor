@@ -39,6 +39,7 @@ typedef struct erow {
 struct editorConfig {
   int cx, cy; // Cursor position
 	int rowoff; // Row offset
+  int coloff; // Coloum offset
 	// Size of text editor
 	int screenrows;
   int screencols;
@@ -213,6 +214,12 @@ void editorScroll() {
   if (E.cy >= E.rowoff + E.screenrows) {
     E.rowoff = E.cy - E.screenrows + 1;
   }
+  if (E.cx < E.coloff) {
+    E.coloff = E.cx;
+  }
+  if (E.cx >= E.coloff + E.screencols) {
+    E.coloff = E.cx - E.screencols + 1;
+  }
 }
 
 void editorDrawRows(struct abuf *ab) {
@@ -236,9 +243,10 @@ void editorDrawRows(struct abuf *ab) {
         abAppend(ab, "~", 1);
       }
     } else {
-			int len = E.row[filerow].size;
+      int len = E.row[filerow].size - E.coloff;
+      if (len < 0) len = 0;
       if (len > E.screencols) len = E.screencols;
-      abAppend(ab, E.row[filerow].chars, len);
+      abAppend(ab, &E.row[filerow].chars[E.coloff], len);
     }
     abAppend(ab, "\x1b[K", 3);
     if (y < E.screenrows - 1) {
@@ -256,7 +264,7 @@ void editorRefreshScreen() {
   editorDrawRows(&ab); // prints '~' foreach row 
 	// Move cursor based on saved posistion
 	char buf[32];
-	snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, E.cx + 1);
+  snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, (E.cx - E.coloff) + 1);
   abAppend(&ab, buf, strlen(buf));
 	
   abAppend(&ab, "\x1b[?25h", 6); // Shows cursor
@@ -266,16 +274,21 @@ void editorRefreshScreen() {
 
 /*** input ***/
 void editorMoveCursor(int key) {
+  erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
+
 	switch (key) {
 	case ARROW_LEFT:
 		if (E.cx != 0) {
 			E.cx--;
-		}
+		} else if (E.cy > 0) {
+      E.cy--;
+      E.cx = E.row[E.cy].size;
+    }
 		break;
 	case ARROW_RIGHT:
-		if (E.cx != E.screencols - 1) {
-			E.cx++;
-		}
+    if (row && E.cx < row->size) {
+      E.cx++;
+    }
 		break;
 	case ARROW_UP:
 		if (E.cy != 0) {
@@ -287,9 +300,17 @@ void editorMoveCursor(int key) {
 			E.cy++;
 		}
 		break;
-}
+  }
+  row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
+  int rowlen = row ? row->size : 0;
+  if (E.cx > rowlen) {
+    E.cx = rowlen;
+  }
 }
 
+/*
+  TODO fix bug with HOME and END keys moving past line end going to the end of the screen
+*/
 void editorProcessKeypress() {
   int c = editorReadKey();
   switch (c) {
@@ -325,6 +346,7 @@ void initEditor() {
   E.cx = 0;
   E.cy = 0;
 	E.rowoff = 0;
+  E.coloff = 0;
 	E.numrows = 0;
 	E.row = NULL;
 
