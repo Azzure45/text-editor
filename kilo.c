@@ -22,6 +22,9 @@
 
 #define CTRL_KEY(k) ((k) & 0x1f)
 
+//! fold all keybind (ctrl + shift + alt + H)
+//! fold keybind (ctrl + alt + H)
+
 enum editorKey
 {
   ARROW_LEFT = 1000,
